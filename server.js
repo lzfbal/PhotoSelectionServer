@@ -10,9 +10,19 @@ const fsSync = require('fs'); // 同步文件操作，用于初始化目录
 const app = express();
 const PORT = 3000;
 
+// ====================================================================
+// DEBUG 选项: true 为本地开发环境 (localhost), false 为生产环境
+const DEBUG_MODE = false; // <--- 修改这里来切换调试模式
+// ====================================================================
+
+// 根据 DEBUG_MODE 设置基础 URL
+const BASE_URL = DEBUG_MODE ? `http://localhost:${PORT}` : 'http://47.107.129.145';
+
 // --- 配置 CORS ---
 app.use(cors({
-    origin: '*', // 生产环境请替换为特定域名，例如 ['http://your-frontend-domain.com', 'https://servicewechat.com']
+    // 在 DEBUG_MODE 下允许所有来源，方便本地开发
+    // 生产环境请替换为特定域名，例如 ['http://your-frontend-domain.com', 'https://servicewechat.com']
+    origin: DEBUG_MODE ? '*' : ['http://your-frontend-domain.com', 'https://servicewechat.com'],
     methods: ['GET', 'POST', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Client-Type'] // 允许 X-Client-Type
 }));
@@ -111,8 +121,8 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         }
     }
 
-    // const photoUrl = `http://localhost:${PORT}/uploads/${req.file.filename}`;
-    const photoUrl = `http://47.107.129.145/uploads/${req.file.filename}`;
+    // 使用 BASE_URL 动态生成 photoUrl
+    const photoUrl = `${BASE_URL}/uploads/${req.file.filename}`;
 
     sessions[currentSessionId].photos.push({
         id: photoId,
@@ -352,8 +362,8 @@ app.post('/generateQRCode', async (req, res) => {
     const miniProgramPath = `${page}?sessionId=${sessionId}`;
     const qrCodeFileName = `qrcode-${sessionId}.png`;
     const qrCodeFilePath = path.join(QRCODE_DIR, qrCodeFileName);
-    // const qrCodeUrl = `http://localhost:${PORT}/qrcodes/${qrCodeFileName}`;
-    const qrCodeUrl = `http://47.107.129.145/qrcodes/${qrCodeFileName}`;
+    // 使用 BASE_URL 动态生成 qrCodeUrl
+    const qrCodeUrl = `${BASE_URL}/qrcodes/${qrCodeFileName}`;
 
     try {
         await qrcode.toFile(qrCodeFilePath, miniProgramPath, {
@@ -372,7 +382,7 @@ app.post('/generateQRCode', async (req, res) => {
 // --- 启动服务器 ---
 loadSessions().then(() => {
     app.listen(PORT, () => {
-        console.log(`后端服务器运行在 http://localhost:${PORT}`);
+        console.log(`后端服务器运行在 ${BASE_URL}`); // 打印实际运行的URL
         console.log(`图片上传目录: ${UPLOAD_DIR}`);
         console.log(`二维码存储目录: ${QRCODE_DIR}`);
         console.log(`数据库文件: ${DB_FILE}`);
