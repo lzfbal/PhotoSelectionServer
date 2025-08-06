@@ -111,7 +111,8 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         }
     }
 
-    const photoUrl = `http://localhost:${PORT}/uploads/${req.file.filename}`;
+    // const photoUrl = `http://localhost:${PORT}/uploads/${req.file.filename}`;
+    const photoUrl = `http://47.107.129.145/uploads/${req.file.filename}`;
 
     sessions[currentSessionId].photos.push({
         id: photoId,
@@ -351,7 +352,8 @@ app.post('/generateQRCode', async (req, res) => {
     const miniProgramPath = `${page}?sessionId=${sessionId}`;
     const qrCodeFileName = `qrcode-${sessionId}.png`;
     const qrCodeFilePath = path.join(QRCODE_DIR, qrCodeFileName);
-    const qrCodeUrl = `http://localhost:${PORT}/qrcodes/${qrCodeFileName}`;
+    // const qrCodeUrl = `http://localhost:${PORT}/qrcodes/${qrCodeFileName}`;
+    const qrCodeUrl = `http://47.107.129.145/qrcodes/${qrCodeFileName}`;
 
     try {
         await qrcode.toFile(qrCodeFilePath, miniProgramPath, {
