@@ -12,7 +12,7 @@ const PORT = 3000;
 
 // ====================================================================
 // DEBUG 选项: true 为本地开发环境 (localhost), false 为生产环境
-const DEBUG_MODE = true; // <--- 修改这里来切换调试模式
+const DEBUG_MODE = false; // <--- 修改这里来切换调试模式
 // ====================================================================
 
 // 根据 DEBUG_MODE 设置基础 URL
@@ -45,16 +45,16 @@ fsSync.mkdirSync(PORTFOLIO_DIR, { recursive: true }); // 确保作品集目录�
 // 配置 Multer 存储
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        console.log(`上传文件: ${file.originalname}, 请求路径: ${req.originalUrl}`);
-        // 根据请求路径判断是普通上传还是作品集上传
-        // 注意：这里 req.path 可能会因为代理而改变，如果使用 Nginx 代理，可能需要检查 req.originalUrl
-        // 但对于 /upload 和 /portfolio/upload 这种明确的路径，通常 req.path 是可靠的
-        if (req.originalUrl.startsWith('/upload')) { // 使用 originalUrl 更安全
+        // *** 关键修改在这里：使用 req.path 进行判断 ***
+        // req.path 会是 Nginx 代理后，后端实际接收到的路径，例如 '/upload' 或 '/portfolio/upload'
+        if (req.path === '/upload') {
             cb(null, UPLOAD_DIR);
-        } else if (req.originalUrl.startsWith('/portfolio/upload')) {
+        } else if (req.path === '/portfolio/upload') {
             cb(null, PORTFOLIO_DIR);
         } else {
-            cb(new Error('Invalid upload path'), null);
+            // 如果请求路径不匹配任何已知上传路径，则抛出错误
+            console.error('Unexpected upload path:', req.path, req.originalUrl);
+            cb(new Error('Invalid upload path: ' + req.path), null);
         }
     },
     filename: function (req, file, cb) {
@@ -62,8 +62,6 @@ const storage = multer.diskStorage({
         cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
     }
 });
-// upload.single('file') 用于单文件上传
-// upload.array('files', maxCount) 用于多文件上传，'files' 是字段名，maxCount 是最大文件数
 const uploadMiddleware = multer({ storage: storage });
 
 // --- 数据库操作函数 ---
@@ -123,7 +121,7 @@ app.use('/portfolio_uploads', express.static(PORTFOLIO_DIR)); // 新增作品集
  * 摄影师上传照片接口
  * POST /upload
  */
-app.post('/upload', uploadMiddleware.single('file'), async (req, res) => { // 仍然是 single
+app.post('/upload', uploadMiddleware.single('file'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ code: 1, message: '没有接收到文件' });
     }
@@ -406,24 +404,24 @@ app.post('/generateQRCode', async (req, res) => {
  * POST /portfolio/upload
  * 接收多文件上传
  */
-app.post('/portfolio/upload', uploadMiddleware.array('file'), async (req, res) => { // 将 single('file') 改为 array('file')
+app.post('/portfolio/upload', uploadMiddleware.array('file'), async (req, res) => {
     if (!req.files || req.files.length === 0) {
         return res.status(400).json({ code: 1, message: '没有接收到文件' });
     }
 
-    const { category } = req.body; // 移除了 title
-    const defaultTitle = '作品'; // 默认标题
-    const defaultDescription = ''; // 默认描述
+    const { category } = req.body;
+    const defaultTitle = '作品';
+    const defaultDescription = '';
 
     const uploadedItems = [];
-    for (const file of req.files) { // 遍历所有上传的文件
+    for (const file of req.files) {
         const itemId = uuidv4();
         const itemUrl = `${BASE_URL}/portfolio_uploads/${file.filename}`;
 
         dbData.portfolioItems.push({
             id: itemId,
-            title: defaultTitle, // 使用默认标题
-            description: defaultDescription, // 描述字段留空
+            title: defaultTitle,
+            description: defaultDescription,
             category: category || '未分类',
             url: itemUrl,
             filename: file.filename,
@@ -437,7 +435,7 @@ app.post('/portfolio/upload', uploadMiddleware.array('file'), async (req, res) =
     res.json({
         code: 0,
         message: 'success',
-        uploadedItems: uploadedItems // 返回所有上传作品的信息
+        uploadedItems: uploadedItems
     });
 });
 
