@@ -10,15 +10,15 @@ const fsSync = require('fs'); // 同步文件操作，用于初始化目录
 const app = express();
 const PORT = 3000;
 
-const DEBUG_MODE = false; // <--- 确保这里是 false
+const DEBUG_MODE = true; // <--- 确保这里是 false
 
 // BASE_URL 生产环境地址更新为域名
-const BASE_URL = DEBUG_MODE ? `http://localhost:${PORT}` : 'http://cutemonster.com.cn';
+const BASE_URL = DEBUG_MODE ? `http://localhost:${PORT}` : 'http://47.112.30.9';
 
 // --- 配置 CORS ---
 app.use(cors({
     // 生产环境请务必将 origin 替换为您的域名，包括 HTTPS
-    origin: DEBUG_MODE ? '*' : ['http://cutemonster.com.cn', 'http://www.cutemonster.com.cn', 'https://cutemonster.com.cn', 'https://www.cutemonster.com.cn'],
+    origin: DEBUG_MODE ? '*' : ['http://47.112.30.9', 'http://www.cutemonster.com.cn', 'https://cutemonster.com.cn', 'https://www.cutemonster.com.cn'],
     methods: ['GET', 'POST', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Client-Type']
 }));
