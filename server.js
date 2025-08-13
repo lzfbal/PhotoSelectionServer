@@ -4,21 +4,41 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const qrcode = require('qrcode');
 const cors = require('cors');
-const fs = require('fs').promises; // 使用 fs.promises 进行异步文件操作
-const fsSync = require('fs'); // 同步文件操作，用于初始化目录
+const fs = require('fs').promises;
+const fsSync = require('fs');
+
+// --- 引入上一级目录的 config.js ---
+const appConfig = require('../config.js'); 
+// ----------------------------------
 
 const app = express();
-const PORT = 3000;
+const PORT = 3000; // Node.js 后端监听的端口
 
-const DEBUG_MODE = true; // <--- 确保这里是 false
+// 从 appConfig 获取 DEBUG_MODE
+const DEBUG_MODE = appConfig.DEBUG_MODE;
 
-// BASE_URL 生产环境地址更新为域名
-const BASE_URL = DEBUG_MODE ? `http://localhost:${PORT}` : 'http://47.112.30.9';
+// 根据 DEBUG_MODE 和 config.js 中的 DOMAIN 构造 BASE_URL
+// 这个 BASE_URL 用于后端生成图片和二维码的完整 URL
+const BASE_URL = DEBUG_MODE ? `http://localhost:${PORT}` : `http://${appConfig.DOMAIN}`;
 
 // --- 配置 CORS ---
+let corsOrigins;
+if (DEBUG_MODE) {
+    corsOrigins = '*'; // 开发环境下允许所有来源
+} else {
+    // 生产环境下，明确列出允许的域名，包括 HTTP 和 HTTPS
+    // 确保这里的域名与您的 Nginx 配置和实际访问域名一致
+    const domain = appConfig.DOMAIN;
+    corsOrigins = [
+        `http://${domain}`,
+        `http://www.${domain}`,
+        `https://${domain}`,
+        `https://www.${domain}`
+    ];
+}
+
 app.use(cors({
-    // 生产环境请务必将 origin 替换为您的域名，包括 HTTPS
-    origin: DEBUG_MODE ? '*' : ['http://47.112.30.9', 'http://www.cutemonster.com.cn', 'https://cutemonster.com.cn', 'https://www.cutemonster.com.cn'],
+    origin: corsOrigins,
     methods: ['GET', 'POST', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Client-Type']
 }));
