@@ -19,7 +19,7 @@ const DEBUG_MODE = appConfig.DEBUG_MODE;
 
 // 根据 DEBUG_MODE 和 config.js 中的 DOMAIN 构造 BASE_URL
 // 这个 BASE_URL 用于后端生成图片和二维码的完整 URL
-const BASE_URL = DEBUG_MODE ? `http://localhost:${PORT}` : `http://${appConfig.DOMAIN}`;
+const BASE_URL = DEBUG_MODE ? `http://localhost:${PORT}` : `https://${appConfig.DOMAIN}`;
 
 // --- 配置 CORS ---
 let corsOrigins;
