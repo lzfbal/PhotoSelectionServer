@@ -131,13 +131,54 @@ app.use('/uploads', express.static(UPLOAD_DIR));
 app.use('/qrcodes', express.static(QRCODE_DIR));
 app.use('/portfolio_uploads', express.static(PORTFOLIO_DIR)); // 新增作品集静态文件服务
 
+// --- 用户验证 ---
+const users = {
+    guaishou: 'daoyu' // 示例用户，请替换为安全的存储方式
+};
+
+function authenticate(username, password) {
+    return users[username] === password;
+}
+
+// --- 登录接口 ---
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+
+    if (authenticate(username, password)) {
+        // 登录成功
+        res.json({ code: 0, message: '登录成功' });
+    } else {
+        // 登录失败
+        res.status(401).json({ code: 1, message: '用户名或密码错误' });
+    }
+});
+
+// --- 中间件：验证管理员身份 ---
+function requireAdmin(req, res, next) {
+    const { authorization } = req.headers;
+
+    if (!authorization) {
+        return res.status(401).json({ code: 1, message: '需要登录才能访问' });
+    }
+
+    const [username, password] = Buffer.from(authorization.split(' ')[1], 'base64').toString().split(':');
+
+    if (authenticate(username, password)) {
+        // 验证成功，继续执行
+        next();
+    } else {
+        // 验证失败
+        res.status(401).json({ code: 1, message: '用户名或密码错误' });
+    }
+}
+
 // --- API 接口 ---
 
 /**
  * 摄影师上传照片接口
  * POST /upload
  */
-app.post('/upload', uploadMiddleware.single('file'), async (req, res) => {
+app.post('/upload', requireAdmin, uploadMiddleware.single('file'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ code: 1, message: '没有接收到文件' });
     }
@@ -181,7 +222,7 @@ app.post('/upload', uploadMiddleware.single('file'), async (req, res) => {
  * 摄影师删除单张照片接口
  * DELETE /photo/:sessionId/:photoId
  */
-app.delete('/photo/:sessionId/:photoId', async (req, res) => {
+app.delete('/photo/:sessionId/:photoId', requireAdmin, async (req, res) => {
     const { sessionId, photoId } = req.params;
 
     if (!dbData.sessions[sessionId]) {
@@ -222,11 +263,8 @@ app.delete('/photo/:sessionId/:photoId', async (req, res) => {
 
 /**
  * 摄影师删除整个会话接口
- * DELETE /session/:sessionId
- * @param {string} sessionId - 要删除的会话ID
- * @returns {json} { code: 0, message: 'success' }
  */
-app.delete('/session/:sessionId', async (req, res) => {
+app.delete('/session/:sessionId', requireAdmin, async (req, res) => {
     const { sessionId } = req.params;
 
     if (!dbData.sessions[sessionId]) {
@@ -263,9 +301,8 @@ app.delete('/session/:sessionId', async (req, res) => {
 
 /**
  * 摄影师完成本次会话接口
- * POST /finishSession
  */
-app.post('/finishSession', async (req, res) => {
+app.post('/finishSession', requireAdmin, async (req, res) => {
     const { sessionId } = req.body;
 
     if (!sessionId || !dbData.sessions[sessionId]) {
@@ -283,9 +320,8 @@ app.post('/finishSession', async (req, res) => {
 
 /**
  * 获取所有会话列表（供摄影师查看），支持筛选、搜索、分页
- * GET /sessions
  */
-app.get('/sessions', (req, res) => {
+app.get('/sessions', requireAdmin, (req, res) => {
     const { status, search, page = 1, limit = 10 } = req.query;
 
     let filteredSessions = Object.keys(dbData.sessions).map(id => ({
@@ -328,7 +364,6 @@ app.get('/sessions', (req, res) => {
 
 /**
  * 获取照片列表接口 (供客户和摄影师查看)
- * GET /photos
  */
 app.get('/photos', (req, res) => {
     const { sessionId } = req.query;
@@ -358,7 +393,6 @@ app.get('/photos', (req, res) => {
 
 /**
  * 客户提交选片结果接口
- * POST /submitSelection
  */
 app.post('/submitSelection', async (req, res) => {
     const { sessionId, selectedPhotoIds } = req.body;
@@ -382,9 +416,8 @@ app.post('/submitSelection', async (req, res) => {
 
 /**
  * 生成选片二维码接口
- * POST /generateQRCode
  */
-app.post('/generateQRCode', async (req, res) => {
+app.post('/generateQRCode', requireAdmin, async (req, res) => {
     const { sessionId, page } = req.body;
 
     if (!sessionId || !page) {
@@ -417,10 +450,8 @@ app.post('/generateQRCode', async (req, res) => {
 
 /**
  * 摄影师上传作品接口
- * POST /portfolio/upload
- * 接收多文件上传
  */
-app.post('/portfolio/upload', uploadMiddleware.array('file'), async (req, res) => {
+app.post('/portfolio/upload', requireAdmin, uploadMiddleware.array('file'), async (req, res) => {
     if (!req.files || req.files.length === 0) {
         return res.status(400).json({ code: 1, message: '没有接收到文件' });
     }
@@ -457,8 +488,6 @@ app.post('/portfolio/upload', uploadMiddleware.array('file'), async (req, res) =
 
 /**
  * 获取作品列表接口
- * GET /portfolio
- * @param {string} category (可选) - 按分类筛选
  */
 app.get('/portfolio', (req, res) => {
     const { category } = req.query;
@@ -480,9 +509,8 @@ app.get('/portfolio', (req, res) => {
 
 /**
  * 删除作品接口
- * DELETE /portfolio/:id
  */
-app.delete('/portfolio/:id', async (req, res) => {
+app.delete('/portfolio/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
     const itemIndex = dbData.portfolioItems.findIndex(item => item.id === id);
 
